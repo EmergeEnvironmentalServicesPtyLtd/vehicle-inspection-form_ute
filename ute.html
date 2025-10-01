@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ute Inspection Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { text-align: center; }
+    .section { margin: 20px 0; }
+    label { display: block; margin-top: 10px; }
+    textarea { width: 100%; height: 100px; }
+    canvas { border: 1px solid #000; width: 100%; height: 200px; }
+    img { max-width: 100%; height: auto; border: 1px solid #ccc; }
+    .vehicle-img { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Ute Vehicle Inspection Form</h1>
+  <div class="section">
+    <h2>Vehicle Information</h2>
+    <label>Date: <input type="date"></label>
+    <label>Registration: <input type="text"></label>
+    <label>Inspector Name: <input type="text"></label>
+    <label>Vehicle Make: <input type="text"></label>
+    <label>Vehicle Model: <input type="text"></label>
+    <label>Odometer: <input type="number"></label>
+  </div>
+  <div class="section">
+    <h2>Damage Markup</h2>
+    
+<h3>Driver Side</h3><img class="vehicle-img" src="driverside_ute.jpeg">
+<h3>Passenger Side</h3><img class="vehicle-img" src="passengerside_ute_.jpeg">
+<h3>Top View</h3><img class="vehicle-img" src="top_ute_.jpeg">
+<h3>Rear View</h3><img class="vehicle-img" src="rear_ute_.jpeg">
+<h3>Front View</h3><img class="vehicle-img" src="front_ute_.jpeg">
+
+  </div>
+  <div class="section">
+    <h2>Comments / Issues</h2>
+    <textarea></textarea>
+  </div>
+  <div class="section">
+    <h2>Inspector Signature</h2>
+    <canvas id="signature-pad"></canvas><br>
+    <button onclick="clearSignature()">Clear Signature</button>
+  </div>
+  <script>
+    var canvas = document.getElementById('signature-pad');
+    var ctx = canvas.getContext('2d');
+    var drawing = false;
+    canvas.addEventListener('mousedown', function(e) {drawing = true; ctx.moveTo(e.offsetX, e.offsetY);});
+    canvas.addEventListener('mousemove', function(e) {if(drawing) {ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke();}});
+    canvas.addEventListener('mouseup', function() {drawing = false;});
+    function clearSignature() {ctx.clearRect(0,0,canvas.width,canvas.height);}
+  </script>
+</body>
+</html>
