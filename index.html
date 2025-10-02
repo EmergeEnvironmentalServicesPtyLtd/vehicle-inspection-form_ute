@@ -9,28 +9,31 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Vehicle Checklist">
   <link rel="apple-touch-icon" href="icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { font-family: Arial, sans-serif; margin: 15px; }
     h1, h2, h3 { text-align: center; }
     .hidden { display: none; }
-    .menu { text-align: center; margin-top: 50px; }
+    .menu { text-align: center; margin-top: 24px; }
     .menu button {
       margin: 10px;
       padding: 15px 40px;
       font-size: 20px;
-      border-radius: 8px;
+      border-radius: 10px;
       border: none;
       background: #007bff;
       color: white;
       cursor: pointer;
     }
     .menu button:hover { background: #0056b3; }
-    .section { border: 1px solid #ccc; padding: 15px; margin: 15px 0; border-radius: 8px; }
-    .vehicle-img { width: 100%; margin: 15px 0; border: 1px solid #ccc; border-radius: 6px; }
+    .section { border: 1px solid #ccc; padding: 15px; margin: 15px 0; border-radius: 10px; }
+    .vehicle-img { width: 100%; margin: 12px 0; border: 1px solid #ccc; border-radius: 8px; }
     .back { margin-bottom: 20px; }
     .marker { position: absolute; font-size: 20px; font-weight: bold; pointer-events: none; }
-    .logo { max-width: 300px; height: auto; margin-bottom: 20px; display:block; margin-left:auto; margin-right:auto; }
+    .logo { max-width: 320px; height: auto; margin-bottom: 16px; display:block; margin-left:auto; margin-right:auto; }
     .vehicle-container { position: relative; }
+    label input[type="text"], label input[type="date"], label input[type="number"] { width: 100%; box-sizing: border-box; padding:8px; margin-top:4px; }
+    textarea { width:100%; box-sizing:border-box; }
   </style>
 </head>
 <body>
@@ -48,12 +51,12 @@
 
     <div class="section">
       <h3>Vehicle Information</h3>
-      <label>Date: <input type="date"></label><br>
-      <label>Registration: <input type="text"></label><br>
-      <label>Inspector Name: <input type="text"></label><br>
-      <label>Vehicle Make: <input type="text" value="Toyota"></label><br>
-      <label>Vehicle Model: <input type="text"></label><br>
-      <label>Odometer: <input type="number"></label>
+      <label>Date: <input id="f_date" type="date"></label><br>
+      <label>Registration: <input id="f_reg" type="text" placeholder="ABC-123"></label><br>
+      <label>Inspector Name: <input id="f_inspector" type="text"></label><br>
+      <label>Vehicle Make: <input id="f_make" type="text" value="Toyota"></label><br>
+      <label>Vehicle Model: <input id="f_model" type="text"></label><br>
+      <label>Odometer: <input id="f_odo" type="number" inputmode="numeric"></label>
     </div>
 
     <div class="section">
@@ -88,17 +91,20 @@
 
     <div class="section">
       <h3>Comments / Issues</h3>
-      <textarea rows="5" style="width:100%;"></textarea>
+      <textarea id="f_comments" rows="5" placeholder="Add notes about damage, missing items, etc."></textarea>
     </div>
 
     <div class="section">
       <h3>Inspector Signature</h3>
-      <canvas id="signature" width="300" height="150" style="border:1px solid #000; width:100%;"></canvas><br>
+      <canvas id="signature" width="600" height="200" style="border:1px solid #000; width:100%; touch-action:none;"></canvas><br>
       <button type="button" onclick="clearSignature()">Clear</button>
     </div>
 
-    <button type="submit">Submit</button>
+    <button type="button" onclick="generatePDF()">Submit & Export PDF</button>
   </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script>
     let currentMarker = "X";
@@ -135,16 +141,23 @@
         const img = document.createElement('img');
         img.src = src;
         img.className = "vehicle-img";
-        img.onclick = (event) => placeMarker(event, div);
+        img.addEventListener('click', (e) => placeMarker(e, div));
+        img.addEventListener('touchstart', (e) => placeMarker(e, div));
         div.appendChild(img);
         container.appendChild(div);
       });
     }
 
     function placeMarker(event, container) {
+      event.preventDefault();
       const rect = container.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
+      let clientX = event.clientX, clientY = event.clientY;
+      if (!clientX && event.touches && event.touches[0]) {
+        clientX = event.touches[0].clientX;
+        clientY = event.touches[0].clientY;
+      }
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
       const marker = document.createElement("div");
       marker.innerText = currentMarker;
       marker.className = "marker";
@@ -159,36 +172,72 @@
       document.getElementById('menu').classList.remove('hidden');
     }
 
+    // Signature
     const canvas = document.getElementById("signature");
     const ctx = canvas.getContext("2d");
     let drawing = false;
 
-    function startDraw(e) { drawing = true; draw(e); }
-    function endDraw() { drawing = false; ctx.beginPath(); }
+    function getSigPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      if (e.touches && e.touches[0]) {
+        return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+      }
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    function startDraw(e) {
+      e.preventDefault();
+      drawing = true;
+      const p = getSigPos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    }
     function draw(e) {
       if (!drawing) return;
       e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX || e.touches[0].clientX) - rect.left;
-      const y = (e.clientY || e.touches[0].clientY) - rect.top;
+      const p = getSigPos(e);
+      ctx.lineTo(p.x, p.y);
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
       ctx.strokeStyle = "black";
-      ctx.lineTo(x, y);
       ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x, y);
     }
+    function endDraw() { drawing = false; }
 
     canvas.addEventListener("mousedown", startDraw);
-    canvas.addEventListener("mouseup", endDraw);
     canvas.addEventListener("mousemove", draw);
+    canvas.addEventListener("mouseup", endDraw);
+    canvas.addEventListener("mouseout", endDraw);
     canvas.addEventListener("touchstart", startDraw);
-    canvas.addEventListener("touchend", endDraw);
     canvas.addEventListener("touchmove", draw);
+    canvas.addEventListener("touchend", endDraw);
 
-    function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    // PDF Export
+    async function generatePDF() {
+      const { jsPDF } = window.jspdf;
+      const formElement = document.getElementById("form");
+      const canvasSnap = await html2canvas(formElement, { scale: 2 });
+      const imgData = canvasSnap.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvasSnap.height * pdfWidth) / canvasSnap.width;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      if (pdfHeight <= pageHeight) {
+        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      } else {
+        let position = 0;
+        let remaining = pdfHeight;
+        while (remaining > 0) {
+          pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+          remaining -= pageHeight;
+          position -= pageHeight;
+          if (remaining > 0) pdf.addPage();
+        }
+      }
+      pdf.save("vehicle-inspection.pdf");
+    }
   </script>
+
   <script>
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js")
