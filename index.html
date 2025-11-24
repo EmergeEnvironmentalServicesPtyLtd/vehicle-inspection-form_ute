@@ -243,7 +243,7 @@
     function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.beginPath(); }
 
     // --- PDF Export (block-wise to keep images whole) ---
-    async async function exportCurrentForm() {
+    async function exportCurrentForm() {
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF("p", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
@@ -255,7 +255,7 @@
       const blocks = Array.from(document.querySelectorAll("#formContent .pdf-block"));
 
       for (const block of blocks) {
-        const canvasBlock = await html2canvas(block, { scale: Math.max(window.devicePixelRatio||1, 2) });
+        const canvasBlock = await html2canvas(block, { scale: 1.0 });
         const imgData = canvasBlock.toDataURL("image/jpeg", 0.7);
         const pxW = canvasBlock.width;
         const pxH = canvasBlock.height;
